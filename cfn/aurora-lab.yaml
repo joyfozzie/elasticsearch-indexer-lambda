@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+
+  VpcName:
+    Type: String
+    Default: bootcamp-vpc
+
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+
+  Subnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+
+  Subnet2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+
+  Subnet3Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+
+  DbUsername:
+    Description: Username must start with a letter. Must contain 1 to 16 alphanumeric characters.
+    MinLength: 1
+    MaxLength: 16
+    Type: String
+
+  DbPassword:
+    Description: Password must be at least eight characters long, as in "mypassword". Can be any printable ASCII character except "/", """, or "@".
+    MinLength: 8
+    MaxLength: 41
+    NoEcho: true
+    Type: String
+
+Resources:
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: !Ref Subnet1Cidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-subnet1-public
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: !Ref Subnet2Cidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-subnet2-public
+
+  Subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [ 2, !GetAZs ]
+      CidrBlock: !Ref Subnet3Cidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-subnet3-public
+    
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet1
+
+  Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet2
+
+  Subnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet3
+
+  AuroraSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: The Aurora db subnet group
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+        - !Ref Subnet3
+
+  AuroraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Default Aurora Security Group
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-postgresql
+      EngineVersion: 10.4
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      DatabaseName: sample
+      Port: 5432
+      DBSubnetGroupName: !Ref AuroraSubnetGroup
+      DBClusterParameterGroupName: default.aurora-postgresql10
+      VpcSecurityGroupIds:
+        - !Ref AuroraSecurityGroup
+      
+  AuroraInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-postgresql
+      EngineVersion: 10.4
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: db.r4.large
+      PubliclyAccessible: true
+      DBSubnetGroupName: !Ref AuroraSubnetGroup
+      DBParameterGroupName: default.aurora-postgresql10
+      
+
+  
+

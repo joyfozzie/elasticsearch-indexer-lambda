@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+
+  CodeBucket:
+    Type: String
+    Default: reinvent2018-bootcamp
+    Description:
+      The S3 bucket where the lambda function code is stored
+
+  ElasticsearchEBSVolumeSizeGB:
+    Type: Number
+    Default: 10
+
+  S3LogDataBucket:
+    Description: The S3 bucket that contains the logstash data
+    Type: String
+    Default: es-log-data
+
+  S3LogDataKey:
+    Description: The S3 key of the logstash json object
+    Type: String
+    Default: logs.json
+
+Resources:
+
+  ESDomain:
+    Type: AWS::Elasticsearch::Domain
+    Properties: 
+      ElasticsearchVersion: 6.3
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: !Ref ElasticsearchEBSVolumeSizeGB
+        VolumeType: gp2
+
+  LambdaServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  LambdaRolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles: 
+        - !Ref LambdaServiceRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:GetObject'
+            Resource: !Sub "arn:aws:s3:::${S3LogDataBucket}/${S3LogDataKey}"
+          - Effect: Allow
+            Action:
+              - 'es:ESHttpGet'
+              - 'es:ESHttpPost'
+              - 'es:ESHttpPut'
+              - 'es:ESHttpHead'
+            Resource:
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ESDomain}/*'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ESDomain}'
+
+  ElasticsearchIndexerLambda: 
+    Type: "AWS::Lambda::Function"
+    Properties: 
+      Handler: "dist/src/index.handler"
+      Role: !GetAtt LambdaServiceRole.Arn
+      Code: 
+        S3Bucket: !Ref CodeBucket
+        S3Key: "es-uploader-lambda.zip"
+      Runtime: "nodejs8.10"
+      Environment:
+        Variables:
+          ES_ENDPOINT: !GetAtt ESDomain.DomainEndpoint
+          ES_INDEX_NAME: logstash-2015.05.18
+          ES_INDEX_TYPE: log
+          S3_BUCKET: !Ref S3LogDataBucket
+          S3_KEY: !Ref S3LogDataKey
+      Timeout: 60
