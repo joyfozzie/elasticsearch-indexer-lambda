@@ -11,6 +11,7 @@ const esRegion = process.env.AWS_REGION
 const indexConfig = {
     name: process.env.ES_INDEX_NAME,
     type: process.env.ES_INDEX_TYPE,
+
     mappings: [
         {
             properties: {
@@ -32,7 +33,7 @@ const indexConfig = {
                 customer_city: {
                     type: "text"
                 },
-                customer_state: {
+                customer_st: {
                     type: "text"
                 },
                 customer_zip_code: {
@@ -70,7 +71,7 @@ const indexConfig = {
                 product_name: {
                     type: "text"
                 },
-                minutes_different: {
+                timediff: {
                     type: "double"
                 },
                 product_price: {
@@ -80,13 +81,22 @@ const indexConfig = {
                     type: "date",
                     format: "yyyy-MM-dd HH:mm"
                 },
-                promised_delivery_date: {
+                promised_delivery_date_time: {
                     type: "date",
                     format: "yyyy-MM-dd HH:mm"
                 },
                 actual_delivery_date_time: {
                     type: "date",
                     format: "yyyy-MM-dd HH:mm"
+                },
+                delivery_distance: {
+                    type: "double"
+                },
+                delivery_distance_miles: {
+                    type: "double"
+                },
+                delivery_status: {
+                    type: "string"
                 }
             }
         }
@@ -120,4 +130,6 @@ exports.handler = async (event, context) => {
         console.log(JSON.stringify(error))
     }
 }
+
+
 
