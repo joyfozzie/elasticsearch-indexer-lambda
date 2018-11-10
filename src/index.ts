@@ -96,7 +96,7 @@ const indexConfig = {
                     type: "double"
                 },
                 delivery_status: {
-                    type: "string"
+                    type: "text"
                 }
             }
         }
