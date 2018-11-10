@@ -36,7 +36,7 @@ const indexConfig = {
                 customer_st: {
                     type: "text"
                 },
-                customer_zip_code: {
+                customer_zip: {
                     type: "text"
                 },
                 order_geo: {
